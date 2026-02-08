@@ -39,5 +39,5 @@ services:
 
 
 
-volumes:
- - members-data-tu
+  volumes:
+    - members-data-tu
