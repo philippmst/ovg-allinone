@@ -7,9 +7,19 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PW}
       - POSTGRES_DB=${POSTGRES_DB} #optional (specify default database instead of $POSTGRES_DB)
     ports:
-      - "${POSTGRES_PORT_EXT}:${POSTGRES_PORT}"
+      - "5432:5432"
     volumes:
-      - members-data-pu:/var/lib/postgresql/data
+      - ./postgres-data:/var/lib/postgresql/data
+    restart: always
+
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4:latest
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_MAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PW}
+    ports:
+      - "8010:80"
     restart: always
 
 
@@ -21,21 +31,27 @@ services:
     env_file:
       - .env
     ports: 
-      - "${BACKEND_PORT_EXT}:8002"
+      - "8020:8002"
     volumes:
       - ./backend/mitgliederverwaltung:/usr/src/app
     restart: always
 
 
+  frontend:
+    container_name: frontend
+    image: members/frontend
+    env_file:
+     - .env
+    ports: 
+     - "8030:8030"
+    restart: always
+
   nginx:
     container_name: nginx
     image: members/nginx
     ports:
-      - "${NGINX_PORT_EXT}:80"
+      - "8040:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/build:/usr/share/nginx/html:ro
     restart: always
-
-volumes:
-  members-data-pu:
