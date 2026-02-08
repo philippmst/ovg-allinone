@@ -38,4 +38,4 @@ services:
     restart: always
 
   volumes:
-    members-data-pu
+    members-data-pu:

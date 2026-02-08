@@ -40,4 +40,4 @@ services:
 
 
   volumes:
-    members-data-tu
+    members-data-tu:
