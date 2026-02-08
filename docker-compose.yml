@@ -37,5 +37,5 @@ services:
       - ./nginx/build:/usr/share/nginx/html:ro
     restart: always
 
-  volumes:
-    members-data-pu:
+volumes:
+  members-data-pu:
