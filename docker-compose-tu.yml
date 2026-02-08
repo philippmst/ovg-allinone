@@ -9,7 +9,7 @@ services:
     ports:
       - "${POSTGRES_PORT_EXT}:${POSTGRES_PORT}"
     volumes:
-      - members-data-pu:/var/lib/postgresql/data
+      - members-data-tu:/var/lib/postgresql/18/docker
     restart: always
 
 
@@ -37,5 +37,7 @@ services:
       - ./nginx/build:/usr/share/nginx/html:ro
     restart: always
 
+
+
 volumes:
-  members-data-pu:
+  members-data-tu:
