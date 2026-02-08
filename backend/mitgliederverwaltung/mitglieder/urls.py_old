@@ -1,0 +1,28 @@
+# -*- coding: utf-8 -*-
+from django.urls import re_path
+from django.conf import settings
+from django.conf.urls.static import static
+from . import views
+
+
+urlpatterns = [
+    re_path(r'^$', views.index, name='index'),
+    re_path(r'^index/$', views.index, name='index'),
+    re_path(r'^editdata/(?P<obj>[\w]+)/(?P<pk>[0-9]+)/$', views.edit, name='edit'),
+    re_path(r'^saveform/(?P<obj>[\w]+)/(?P<pk>[0-9]+)/$', views.saveform, name='saveform'),
+    re_path(r'^remove/(?P<obj>[\w]+)/(?P<pk>[0-9]+)/$', views.remove, name='remove'),
+    re_path(r'^mitglieder/$', views.mitglieder, name='mitglieder'),
+    re_path(r'^mitglieder/(?P<pk>[0-9]+)/$', views.mitglied_details, name='mitglied_details'),
+    re_path(r'^mitglieder/(?P<obj>[\w]+)/(?P<pk>[0-9]+)/$', views.mitglieder, name='mitglied_filter'),
+    re_path(r'^jubilare/$', views.jubilare, name='jubilare'),
+    re_path(r'^land/$', views.land, name='land'),
+    re_path(r'^beruf/$', views.beruf, name='beruf'),
+    re_path(r'^mitgliedsart/$', views.mitgliedsart, name='mitgliedsart'),
+    re_path(r'^mitgliedsbeitraege/$', views.mitgliedsbeitraege, name='mitgliedsbeitraege'),
+    re_path(r'^mitgliedsbeitraege_neu/$', views.mitgliedsbeitraege_neu, name='mitgliedsbeitraege_neu'),
+    re_path(r'^kosten/$', views.kosten, name='kosten'),
+    re_path(r'^vgiuebersicht/$', views.vgiuebersicht, name='vgiuebersicht'),
+    re_path(r'^emails_ausschicken/(?P<pk>[0-9]+)/$', views.emails_ausschicken, name='emails_ausschicken'),
+    re_path(r'^beitragbezahlen/(?P<uuid>[0-9a-f\-]{36})/$', views.beitragbezahlen, name='beitragbezahlen'),
+
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

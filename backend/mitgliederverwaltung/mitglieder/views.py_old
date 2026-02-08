@@ -1,0 +1,271 @@
+from django.shortcuts import render, redirect
+from django.http import HttpResponse
+from django.core.mail import send_mail
+from django.db.models import Sum
+import os
+import subprocess
+import json
+from django.template.loader import get_template
+from .forms import *
+from datetime import datetime as dt
+from django.contrib.auth.decorators import user_passes_test
+from django.urls import reverse
+from .models import *
+from django.conf import settings
+import glob
+import shutil
+from django.utils import timezone
+
+
+def group_required(*group_names):
+    """Requires user membership in at least one of the groups passed in."""
+    def in_groups(u):
+        if bool(u.groups.filter(name__in=group_names)) | u.is_superuser:
+            return True
+        return False
+    return user_passes_test(in_groups)
+
+
+# @login_required
+def edit(request,obj,pk):
+    x=int(pk)
+    if x==0:
+        initial=eval(obj)()
+    else:
+        initial=eval(obj).objects.get(id=x)
+    if obj=="offenePosten" and x==0:
+        mid=request.META['HTTP_REFERER'].split('/')[-2]
+        initial.mitglied=VereinsMitglied.objects.get(id=int(mid))
+        initial.save()
+        pk=initial.id
+
+    mf=eval(obj+'Form')(instance=initial)
+
+    url='/saveform/%s/%s/' % (obj,pk)
+    url=reverse('ovgmitglieder:saveform', kwargs={'obj': obj, 'pk': pk })
+    deleteurl=reverse('ovgmitglieder:remove', kwargs={'obj': obj, 'pk': pk })
+    deletetitle="Remove %s (PK: %s, %s)" % (obj,pk,str(initial))
+    edittitle="%s (PK: %s, %s)" % (obj.upper(),pk,str(initial))
+    context={'form':mf,'url':url, 'deleteurl':deleteurl, 'deletetitle':deletetitle, 'edittitle':edittitle }
+    return render(request,'mitglieder/modalform.html',context)
+
+
+# @login_required
+def saveform(request,obj,pk):
+    if request.method=='POST':
+        mutable = request.POST._mutable
+        if int(pk)>0:
+            initial=eval(obj).objects.get(id=pk)
+        else:
+            initial=eval(obj)()
+        if obj=="offenePosten":
+            initial.bezahltam=timezone.now()
+
+        f=eval(obj+'Form')(request.POST, request.FILES, instance=initial)
+
+        if f.is_valid():
+            f.save()
+            context={'success':'yes'}
+            redirect(request.META['HTTP_REFERER'])
+        else:
+            retr=f.errors.as_json()
+            return HttpResponse(retr)
+            url=reverse('ovgmitglieder:saveform', kwargs={'obj': obj, 'pk': pk })
+            deleteurl=reverse('ovgmitglieder:remove', kwargs={'obj': obj, 'pk': pk })
+            deletetitle="Remove %s (PK: %s, %s)" % (obj,pk,str(initial))
+            edittitle="%s (PK: %s, %s)" % (obj.upper(),pk,str(initial))
+            context={'form':f,'url':url, 'deleteurl':deleteurl, 'deletetitle':deletetitle, 'edittitle':edittitle }
+
+    else:
+        context={'type':'error','message':'we just accept POST!'}
+    return HttpResponse(json.dumps(context, ensure_ascii=False), content_type=request.is_ajax() and "application/json" or "text/html")
+
+# @login_required
+def remove(request,obj,pk):
+    mf = eval(obj).objects.get(id=pk)
+    mf.delete()
+    retr = json.dumps({'type':'success','message':'{} with pk {} successfully deleted'.format(obj,pk)})
+    redirect(request.META['HTTP_REFERER'])
+    return HttpResponse(retr)
+
+
+# @login_required
+def mitglieder(request,obj=False, pk=0):
+    m = VereinsMitglied.objects.all()
+    title = 'Mitglieder'
+    if obj:
+        l = eval(obj).objects.get(id=pk)
+        m = l.vereinsmitglied_set.all()
+        title += ' gefilter nach {}: {}'.format(obj,l)
+
+    context = {'title': title, 'mitglieder':m, 'mitart': Mitgliedsart.objects.all() }
+    return render(request, 'mitglieder/mitglieder.html',context)
+
+# @login_required
+def mitglied_details(request,pk):
+    m = VereinsMitglied.objects.get(id=pk)
+    op = m.offeneposten_set.filter(bezahlt=False).count()
+    context = {'title':'Mitglied Detailansicht','m': m, 'op': op}
+    return render(request, 'mitglieder/mitglied_details.html',context)
+
+
+# @group_required('ovg_admin')
+# @login_required
+def index(request):
+    year = dt.now().year
+    mm = VereinsMitglied.objects.order_by('gebdat').filter(gebdat__isnull=False)
+    for m in mm:
+        m.alter = year-m.gebdat.year
+    jubls = [50,60,70,75,80,85,90,95]
+    jubilare = [m for m in mm if m.alter in jubls or m.alter>99]
+    oo = offenePosten.objects.filter(bezahlt=False)
+    summe = 0
+    for o in oo:
+        summe = summe+o.offen
+    context = {'title':'Dashboard','offenerbetrag': summe, 'mitart':Mitgliedsart.objects.all(), 'mitgliedercount': VereinsMitglied.objects.count(), 'jubilare': len(jubilare)}
+    return render(request, 'mitglieder/index.html',context)
+
+# @login_required
+def land(request):
+    context={'title':'Land','land':Land.objects.all()}
+    return render(request, 'mitglieder/land.html',context)
+
+# @login_required
+def beruf(request):
+    context={'title':'Beruf','beruf':Beruf.objects.all()}
+    return render(request, 'mitglieder/beruf.html',context)
+
+# @login_required
+def mitgliedsart(request):
+    context={'title':'Mitgliedsart','mitgliedsart':Mitgliedsart.objects.all()}
+    return render(request, 'mitglieder/mitgliedsart.html',context)
+
+# @login_required
+def kosten(request):
+    context={'title':'Kosten','kosten':Kosten.objects.all()}
+    return render(request, 'mitglieder/kosten.html',context)
+
+# @login_required
+def mitgliedsbeitraege(request):
+    context={'title':'Mitgliedsbeitrage','offeneposten':offenePosten.objects.filter(bezahlt=False).order_by('-erstellt')}
+    return render(request, 'mitglieder/mitgliedsbeitraege.html',context)
+
+def beitragbezahlen(request, uuid):
+    e=EmailId.objects.get(uuid4=uuid)
+    total=e.offeneposten.aggregate(t=Sum('offen'))['t']
+    context={'e': e, 'title': 'Mitgliedsbeitrag bezahlen', 'total': total }
+    return render(request, 'mitglieder/beitragbezahlen.html', context)
+
+
+# @login_required
+def mitgliedsbeitraege_neu(request):
+    context={'title': 'Neuen Jahresbeitrag anlegen', 'neu': 'neuheu'}
+    if request.method=="POST":
+        d=request.POST['description']
+        if d!="":
+            # TODO das m muss noch auf alle anderen Mitglieder geändert werden
+            mm=VereinsMitglied.objects.filter(id=13699)
+            for m in mm:
+                o=offenePosten(mitglied=m, description=d)
+                o.save()
+            context['success']='Der Beitrag "{}" wurde erfolgreich angelegt!'.format(d)
+        else:
+            context['error']='Sie haben ein leeres Feld übergeben!'
+    return render(request, 'mitglieder/mitgliedsbeitraege_neu.html', context)
+
+
+# @login_required
+def emails_ausschicken(request,pk):
+    if pk == "alle":
+        m = VereinsMitglied.objects.all()
+        #muss man noch anpassen
+    else:
+        m = VereinsMitglied.objects.get(id=pk)
+
+    e,c = EmailId.objects.get_or_create(mitglied=m)
+    e.save()
+    uuid = e.uuid4
+    context = {'title':'E-Mail ausschicken', 'uuid': uuid, 'm':m }
+    if c:
+        e.offeneposten.clear()
+    op = m.offeneposten_set.filter(bezahlt=False)
+    if op:
+        [e.offeneposten.add(o) for o in op]
+        html_text = """
+        <html><head></head><body>
+        <h2>Hallo %s %s</h2>
+        <p>Bitte folge dem <a href="http://www.ovg.at/ovgmitglieder/beitragbezahlen/%s" target="_blank">
+        Link</a> um deinen Mitgliedsbeitrag zu bezahlen.</p>
+        <br>
+        <br>
+        Dein OVG-IT-Team </body></html>
+        """ % (m.vorname, m.nachname, uuid)
+        s = send_mail(subject='OVG - Österreichische Gesellschaft für Vermessung und Geoinformation', message='', html_message=html_text, from_email='noreply@ovg.at', recipient_list=[m.email] )
+        context['s']=s
+        if s:
+            context['mail'] = 'Mail an {} wurde erfolgreich versendet'.format(m.email)
+        else:
+            context['mail'] = 'Mail an {} konnte nicht versendet werden'.format(m.email)
+    else:
+        context['error'] = 'Es gibt keine offenen Posten'
+    return render(request, 'mitglieder/emails_ausschicken.html',context)
+
+
+# @login_required
+def jubilare(request):
+    year=dt.now().year
+    mm=VereinsMitglied.objects.order_by('gebdat').filter(gebdat__isnull=False)
+    for m in mm:
+        m.alter=year-m.gebdat.year
+    jubls=[50,60,70,75,80,85,90,95]
+    jubilare=[m for m in mm if m.alter in jubls or m.alter>99]
+    context={'title':'Jubilare', 'jubilare':jubilare, 'monate': range(1,13) }
+    return render(request, 'mitglieder/jubilare.html',context)
+
+
+def makepdfs(vorlage, target, m):
+    template=get_template('mitglieder/'+vorlage)
+    context={'vm': m}
+    rendered_tmpl=template.render(context).encode('utf-8')
+    path='/home/bipo/ovgreact/backend/mitgliederverwaltung/latexfiles'
+    os.chdir(path)
+    fname=target+'.tex'
+    f=open(fname,'wb')
+    f.write(rendered_tmpl)
+    f.close()
+    subprocess.call(['pdflatex',fname])
+    pdffile=glob.glob(os.path.join(path,target+'.pdf'))
+    shutil.copy(pdffile[0], os.path.join(settings.STATIC_ROOT,'pdfs'))
+    files=glob.glob(os.path.join(path,target+'.*'))
+    for f in files:
+        os.remove(f)
+
+
+# @login_required
+def vgiuebersicht(request):
+    l=Land.objects.filter(EU=False)
+    international=VereinsMitglied.objects.filter(versand='POST').filter(wohnadresse__country__in=l)
+    context={'outside_eu': international.count() }
+    l=Land.objects.filter(EU=True).exclude(land='AUSTRIA')
+    europa=VereinsMitglied.objects.filter(versand='POST').filter(wohnadresse__country__in=l)
+    context['inside_eu']= europa.count()
+    l=Land.objects.filter(land='AUSTRIA')
+    austria=VereinsMitglied.objects.filter(versand='POST').filter(wohnadresse__country__in=l).order_by('plz')
+    context['austria']= austria.count()
+    bevler=VereinsMitglied.objects.filter(versand='BEV')
+    context['bevler']= bevler.count()
+    makepdfs('hauspost_vorlage.tex', 'hauspost', bevler)
+    makepdfs('europa_vorlage.tex', 'europa', europa)
+    makepdfs('austria_vorlage.tex', 'austria', austria)
+    return render(request, 'mitglieder/vgiuebersicht.html', context)
+
+"""
+# @login_required
+def vgi_adressen(request):
+    vm=VereinsMitglied.objects.filter(versand="BEV")
+    pdf=fname[:-3]+"pdf"
+    f=open(pdf,'rb')
+    response= HttpResponse(f.read(), content_type='application/pdf')
+    response['Content-Disposition']= 'filename=hauspost.pdf'
+    return response
+"""

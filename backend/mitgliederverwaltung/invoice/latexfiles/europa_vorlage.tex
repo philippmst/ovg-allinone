@@ -1,0 +1,46 @@
+{% autoescape off %}
+
+\documentclass{article}
+\usepackage[paperwidth=9cm,
+left=5mm,top=1mm,bottom=1mm,paperheight=5.5cm,right=1mm]{geometry}
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\setlength\parindent{0pt}
+\renewcommand{\familydefault}{\sfdefault}
+\begin{document}
+
+{% for b in vm %}
+
+\begin{minipage}[t]{0.63\textwidth}
+	\vspace*{0mm}
+	{\fontsize{10}{10} \selectfont
+	VGI, Schiffamtsgasse 1-3
+
+	1020 Wien
+	}
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.37\textwidth}
+	\vspace*{0mm}
+	\includegraphics[width=2.3cm]{poststempel.jpg}
+
+\end{minipage}
+{\fontsize{10}{10} \selectfont
+\vspace{1mm}
+% ==========================
+{% if b.titel %}{{ b.titel}} {% endif %}{% if b.first_name != "0" %} {{ b.first_name }} {% endif %} {{ b.nachname }}
+
+{% if b.surname2 != "0" %}{{ b.surname2 }}{% endif %}
+
+{{ b.strasse }}
+
+{{ b.plz }} {{ b.ort }}
+
+{{ b.country }}
+% ==========================
+}
+\newpage
+{% endfor %}
+\end{document}
+
+{% endautoescape %}

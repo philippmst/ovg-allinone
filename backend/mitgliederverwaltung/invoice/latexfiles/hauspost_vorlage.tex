@@ -1,0 +1,24 @@
+{% autoescape off %}
+
+\documentclass{article}
+
+\usepackage[a4paper,left=1mm,top=1mm,bottom=1mm,right=1mm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{longtable}
+\usepackage{makecell}
+\setlength\parindent{0pt}
+\renewcommand{\familydefault}{\sfdefault}
+\begin{document}
+
+\newcommand{\ovgvspace}{\vspace*{8mm}}
+
+\begin{longtable}{p{0.32\textwidth}|p{0.32\textwidth}|p{0.32\textwidth}}
+
+{% for b in vm %}\hspace{7mm}\makecell[l]{\ovgvspace \\{{ b.titel }} {{ b.vorname }}\\ {{ b.nachaname }}\\ {{ b.namenszusatz }}\\ Schiffamtsgasse 1-3 \\ A - 1020  Wien\\  \ovgvspace}
+{% if forloop.counter|divisibleby:3 %} \\ \hline{% else %}&{% endif %}
+{% endfor %}
+
+\end{longtable}
+\end{document}
+
+{% endautoescape %}

@@ -1,0 +1,41 @@
+{% load addonns %}
+{% autoescape off %}
+
+\documentclass{article}
+\usepackage[paperwidth=9cm,
+left=5mm,top=1mm,bottom=1mm,paperheight=5.5cm,right=1mm]{geometry}
+\usepackage{graphicx}
+\usepackage[utf8]{inputenc}
+\setlength\parindent{0pt}
+\renewcommand{\familydefault}{\sfdefault}
+\begin{document}
+
+{% for b in vm %}
+
+\begin{center}
+	\vspace*{0mm}
+	{\fontsize{10}{10} \selectfont
+  Österreichische Post AG Info.Mail Entgelt bezahlt
+	\underline{VGI, Schiffamtsgasse 1-3,	1020 Wien}
+	}
+\end{center}
+
+{\fontsize{10}{10} \selectfont
+\vspace{1mm}
+
+
+% ==========================
+{% if b.titel %}{{ b.titel}} {% endif %}{% if b.vorname %} {{ b.vorname }} {% endif %} {{ b.nachname|tex_safe }}
+
+{% if b.namenszusatz %}{{ b.namenszusatz|tex_safe }}{% endif %}
+
+{{ b.lieferadresse.strasse }}
+
+{{ b.lieferadresse.plz }} {{ b.lieferadresse.ort }}
+% ==========================
+}
+\newpage
+{% endfor %}
+\end{document}
+
+{% endautoescape %}

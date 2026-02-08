@@ -1,0 +1,14 @@
+# allgemein
+/.vscode/
+/postgres-data/
+
+
+# backend
+ovg*.pdf
+**/*.pyc
+
+# frontend
+frontend/node_modules/
+frontend/build
+
+
